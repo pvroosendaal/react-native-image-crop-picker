@@ -6,8 +6,16 @@ declare module "react-native-image-crop-picker" {
         multiple?: boolean;
         path?: string;
         includeBase64?: boolean;
+        includeExif?: boolean;
+        avoidEmptySpaceAroundImage?: boolean;
+        cropperActiveWidgetColor?: string;
+        cropperStatusBarColor?: string;
+        cropperToolbarColor?: string;
+        cropperToolbarTitle?: string;
+        freeStyleCropEnabled?: boolean;
         cropperTintColor?: string;
         cropperCircleOverlay?: boolean;
+        disableCropperColorSetters?: boolean;
         maxFiles?: number;
         waitAnimationEnd?: boolean;
         smartAlbums?: string[];
@@ -19,9 +27,12 @@ declare module "react-native-image-crop-picker" {
         loadingLabelText?: string;
         mediaType?: string;
         showsSelectedCount?: boolean;
+        forceJpg?: boolean;
         showCropGuidelines?: boolean;
         hideBottomControls?: boolean;
         enableRotationGesture?: boolean;
+        cropperCancelText?: string;
+        cropperChooseText?: string;
     }
 
     export interface Image {
@@ -31,6 +42,19 @@ declare module "react-native-image-crop-picker" {
         width: number;
         height: number;
         mime: string;
+        exif: null | object;
+        cropRect: null | CropRect;
+        filename: string;
+        creationDate: string;
+        modificationDate?: string;
+
+    }
+
+    export interface CropRect {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
     }
 
     export function openPicker(options: Options): Promise<Image | Image[]>;
@@ -38,4 +62,16 @@ declare module "react-native-image-crop-picker" {
     export function openCropper(options: Options): Promise<Image>;
     export function clean(): Promise<void>;
     export function cleanSingle(path: string): Promise<void>;
+
+    export interface ImageCropPicker {
+        openPicker(options: Options): Promise<Image | Image[]>;
+        openCamera(options: Options): Promise<Image | Image[]>;
+        openCropper(options: Options): Promise<Image>;
+        clean(): Promise<void>;
+        cleanSingle(path: string): Promise<void>;
+    }
+
+    const ImageCropPicker: ImageCropPicker;
+
+    export default ImageCropPicker;
 }
