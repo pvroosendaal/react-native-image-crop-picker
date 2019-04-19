@@ -455,7 +455,7 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
     });
 }
 
-- (void) handleVideo:(AVAsset*)asset withFileName:(NSString*)fileName withLocalIdentifier:(NSString*)localIdentifier completion:(void (^)(NSDictionary* image))completion {
+- (void) handleVideo:(AVAsset*)asset withFileName:(NSString*)fileName withLocalIdentifier:(NSString*)localIdentifier withCreationDate:(NSDate*)creationDate withModificationDate:(NSDate*)modificationDate withCoordinate:(CLLocationCoordinate2D)coordinate completion:(void (^)(NSDictionary* image))completion {
     NSURL *sourceURL = [(AVURLAsset *)asset URL];
 
     // create temp file
@@ -485,8 +485,9 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
                                              withSize:fileSizeValue
                                              withData:nil
                                              withRect:CGRectNull
-                                     withCreationDate:nil
-                                 withModificationDate:nil
+                                     withCreationDate:creationDate
+                                 withModificationDate:modificationDate
+									   withCoordinate:coordinate
                         ]);
         } else {
             completion(nil);
@@ -508,12 +509,15 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
          [self handleVideo:asset
               withFileName:[forAsset valueForKey:@"filename"]
        withLocalIdentifier:forAsset.localIdentifier
+		  withCreationDate:forAsset.creationDate
+	  withModificationDate:forAsset.modificationDate
+			withCoordinate:forAsset.location.coordinate
                 completion:completion
          ];
      }];
 }
 
-- (NSDictionary*) createAttachmentResponse:(NSString*)filePath withExif:(NSDictionary*) exif withSourceURL:(NSString*)sourceURL withLocalIdentifier:(NSString*)localIdentifier withFilename:(NSString*)filename withWidth:(NSNumber*)width withHeight:(NSNumber*)height withMime:(NSString*)mime withSize:(NSNumber*)size withData:(NSString*)data withRect:(CGRect)cropRect withCreationDate:(NSDate*)creationDate withModificationDate:(NSDate*)modificationDate {
+- (NSDictionary*) createAttachmentResponse:(NSString*)filePath withExif:(NSDictionary*) exif withSourceURL:(NSString*)sourceURL withLocalIdentifier:(NSString*)localIdentifier withFilename:(NSString*)filename withWidth:(NSNumber*)width withHeight:(NSNumber*)height withMime:(NSString*)mime withSize:(NSNumber*)size withData:(NSString*)data withRect:(CGRect)cropRect withCreationDate:(NSDate*)creationDate withModificationDate:(NSDate*)modificationDate withCoordinate:(CLLocationCoordinate2D)coordinate {
     return @{
              @"path": (filePath && ![filePath isEqualToString:(@"")]) ? filePath : [NSNull null],
              @"sourceURL": (sourceURL) ? sourceURL : [NSNull null],
@@ -528,6 +532,8 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
              @"cropRect": CGRectIsNull(cropRect) ? [NSNull null] : [ImageCropPicker cgRectToDictionary:cropRect],
              @"creationDate": (creationDate) ? [NSString stringWithFormat:@"%.0f", [creationDate timeIntervalSince1970]] : [NSNull null],
              @"modificationDate": (modificationDate) ? [NSString stringWithFormat:@"%.0f", [modificationDate timeIntervalSince1970]] : [NSNull null],
+			 @"latitude": coordinate != nil ? coordinate.latitude : [NSNull null],
+			 @"longitude": coordinate != nil ? coordinate.longitude : [NSNull null],
              };
 }
 
@@ -668,6 +674,7 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
                                                                              withRect:CGRectNull
                                                                      withCreationDate:phAsset.creationDate
                                                                  withModificationDate:phAsset.modificationDate
+																	   withCoordinate:phAsset.location.coordinate
                                                         ]];
                              }
                              processed++;
@@ -729,7 +736,8 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
                                   withLocalIdentifier:phAsset.localIdentifier
                                          withFilename:[phAsset valueForKey:@"filename"]
                                      withCreationDate:phAsset.creationDate
-                                 withModificationDate:phAsset.modificationDate];
+                                 withModificationDate:phAsset.modificationDate
+									   withCoordinate:phAsset.location.coordinate];
                      });
                  }];
             }
@@ -746,7 +754,7 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
 // when user selected single image, with camera or from photo gallery,
 // this method will take care of attaching image metadata, and sending image to cropping controller
 // or to user directly
-- (void) processSingleImagePick:(UIImage*)image withExif:(NSDictionary*) exif withViewController:(UIViewController*)viewController withSourceURL:(NSString*)sourceURL withLocalIdentifier:(NSString*)localIdentifier withFilename:(NSString*)filename withCreationDate:(NSDate*)creationDate withModificationDate:(NSDate*)modificationDate {
+- (void) processSingleImagePick:(UIImage*)image withExif:(NSDictionary*) exif withViewController:(UIViewController*)viewController withSourceURL:(NSString*)sourceURL withLocalIdentifier:(NSString*)localIdentifier withFilename:(NSString*)filename withCreationDate:(NSDate*)creationDate withModificationDate:(NSDate*)modificationDate withCoordinate:(CLLocationCoordinate2D)coordinate {
 
     if (image == nil) {
         [viewController dismissViewControllerAnimated:YES completion:[self waitAnimationEnd:^{
@@ -764,6 +772,7 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
         self.croppingFile[@"filename"] = filename;
         self.croppingFile[@"creationDate"] = creationDate;
         self.croppingFile[@"modifcationDate"] = modificationDate;
+		self.croppingFile[@"coordinate"] = coordinate
         NSLog(@"CroppingFile %@", self.croppingFile);
 
         [self startCropping:[image fixOrientation]];
@@ -793,6 +802,7 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
                                                withRect:CGRectNull
                                        withCreationDate:creationDate
                                    withModificationDate:modificationDate
+										 withCoordinate:coordinate
                           ]);
         }]];
     }
@@ -909,10 +919,10 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
 
     [self dismissCropper:controller selectionDone:YES completion:[self waitAnimationEnd:^{
         self.resolve([self createAttachmentResponse:filePath
-                                           withExif: exif
-                                      withSourceURL: self.croppingFile[@"sourceURL"]
-                                withLocalIdentifier: self.croppingFile[@"localIdentifier"]
-                                       withFilename: self.croppingFile[@"filename"]
+                                           withExif:exif
+                                      withSourceURL:self.croppingFile[@"sourceURL"]
+                                withLocalIdentifier:self.croppingFile[@"localIdentifier"]
+                                       withFilename:self.croppingFile[@"filename"]
                                           withWidth:imageResult.width
                                          withHeight:imageResult.height
                                            withMime:imageResult.mime
@@ -921,6 +931,7 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
                                            withRect:cropRect
                                    withCreationDate:self.croppingFile[@"creationDate"]
                                withModificationDate:self.croppingFile[@"modificationDate"]
+									 withCoordinate:self.croppingFile[@"coordinate"]
                       ]);
     }]];
 }
