@@ -170,28 +170,29 @@ RCT_EXPORT_METHOD(openCamera:(NSDictionary *)options
             return;
         }
 
-        UIImagePickerController *picker = [[UIImagePickerController alloc] init];
-        picker.delegate = self;
-        picker.allowsEditing = NO;
-        picker.sourceType = UIImagePickerControllerSourceTypeCamera;
+		dispatch_async(dispatch_get_main_queue(), ^{
+			
+			UIImagePickerController *picker = [[UIImagePickerController alloc] init];
+			picker.delegate = self;
+			picker.allowsEditing = NO;
+			picker.sourceType = UIImagePickerControllerSourceTypeCamera;
 
-        NSString *mediaType = [self.options objectForKey:@"mediaType"];
+			NSString *mediaType = [self.options objectForKey:@"mediaType"];
+			
+			if ([mediaType isEqualToString:@"any"]) {
+				picker.mediaTypes = [UIImagePickerController availableMediaTypesForSourceType:UIImagePickerControllerSourceTypeCamera];
+			} else if ([mediaType isEqualToString:@"video"]) {
+				picker.mediaTypes = @[(NSString *)kUTTypeMovie];
+			}
+			
+			if ([picker.mediaTypes containsObject:(NSString *)kUTTypeMovie]) {
+				picker.videoQuality = UIImagePickerControllerQualityTypeHigh;
+			}
+			
+			if ([[self.options objectForKey:@"useFrontCamera"] boolValue]) {
+				picker.cameraDevice = UIImagePickerControllerCameraDeviceFront;
+			}
         
-		if ([mediaType isEqualToString:@"any"]) {
-			picker.mediaTypes = [UIImagePickerController availableMediaTypesForSourceType:UIImagePickerControllerSourceTypeCamera];
-		} else if ([mediaType isEqualToString:@"video"]) {
-			picker.mediaTypes = @[(NSString *)kUTTypeMovie];
-		}
-		
-		if ([picker.mediaTypes containsObject:(NSString *)kUTTypeMovie]) {
-			picker.videoQuality = UIImagePickerControllerQualityTypeHigh;
-		}
-		
-        if ([[self.options objectForKey:@"useFrontCamera"] boolValue]) {
-            picker.cameraDevice = UIImagePickerControllerCameraDeviceFront;
-        }
-
-        dispatch_async(dispatch_get_main_queue(), ^{
             [[self getRootVC] presentViewController:picker animated:YES completion:nil];
         });
     }];
@@ -226,9 +227,11 @@ RCT_EXPORT_METHOD(openCamera:(NSDictionary *)options
                        return;
                    }
 
-                   [picker dismissViewControllerAnimated:YES completion:[self waitAnimationEnd:^{
-                       self.resolve(video);
-                   }]];
+					dispatch_async(dispatch_get_main_queue(), ^{
+					   [picker dismissViewControllerAnimated:YES completion:[self waitAnimationEnd:^{
+						   self.resolve(video);
+					   }]];
+					});
                }
          ];
     } else {
@@ -873,7 +876,7 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
 - (void)imageCropViewControllerDidCancelCrop:
 (RSKImageCropViewController *)controller {
     [self dismissCropper:controller selectionDone:NO completion:[self waitAnimationEnd:^{
-        if (self.currentSelectionMode == CROPPING || [[self.options objectForKey:@"cropping"] boolValue]) {
+		if (self.currentSelectionMode != PICKER && (self.currentSelectionMode == CROPPING || [[self.options objectForKey:@"cropping"] boolValue])) {
             self.reject(ERROR_PICKER_CANCEL_KEY, ERROR_PICKER_CANCEL_MSG, nil);
         }
     }]];
